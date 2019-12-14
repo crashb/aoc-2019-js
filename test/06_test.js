@@ -2,7 +2,7 @@ const assert = require("assert");
 const { numOrbits, numTransfers } = require("../src/06");
 
 describe("Day 06", () => {
-    describe("Part 1 - numOrbits", ()=> {
+    describe("Part 1 - numOrbits", () => {
         it("calulates the given example", () => {
             let map = [
                 ["COM", "B"],

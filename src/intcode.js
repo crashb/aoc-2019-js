@@ -1,3 +1,5 @@
+const PubSub = require('pubsub-js');
+
 const MODE_POSITION = 0;
 const MODE_IMMEDIATE = 1;
 
@@ -26,12 +28,9 @@ function getParameterMode(parameterModes, position) {
     return Math.floor(parameterModes / Math.pow(10, position - 1)) % 10;
 }
 
-function runIntCodeProgram(program, inputs = []) {
+async function runIntcodeProgram(program, inputTopic, outputTopic) {
     let state = program.slice();
-    let remainingInputs = inputs.slice();
-
     let programCounter = 0;
-    let outputs = [];
     while (state[programCounter] % 100 != OPCODE_HALT) {
         let currentOpcode = state[programCounter] % 100;
         let currentModes = Math.floor(state[programCounter] / 100);
@@ -57,10 +56,17 @@ function runIntCodeProgram(program, inputs = []) {
                 state[parameterIndices[2]] = parameters[0] * parameters[1];
                 break;
             case OPCODE_INPUT:
-                state[parameterIndices[0]] = remainingInputs.shift();
+                let input = await new Promise(resolve => {
+                    let inputToken = PubSub.subscribe(inputTopic, (msg, data) => {
+                        PubSub.unsubscribe(inputToken);
+                        resolve(data);
+                    });
+                });
+                state[parameterIndices[0]] = input;
                 break;
             case OPCODE_OUTPUT:
-                outputs.push(parameters[0]);
+                let output = parameters[0];
+                PubSub.publish(outputTopic, output);
                 break;
             case OPCODE_JIT:
                 if (parameters[0] != 0) {
@@ -88,9 +94,47 @@ function runIntCodeProgram(program, inputs = []) {
             programCounter += instructionLength;
         }
     }
-    return [state, outputs];
+
+    // block execution briefly to allow published output messages to settle
+    await new Promise(resolve => {
+        setTimeout(() => {
+            resolve();
+        }, 0);
+    });
+
+    return state;
+}
+
+var topicCounter = 0;
+
+function getNewTopic() {
+    topicCounter++;
+    return `Topic-${topicCounter}`;
+}
+
+function sendInput(topic, input) {
+    PubSub.publish(topic, input);
+}
+
+var outputs = {};
+var outputTokens = {};
+
+function startRecordingOutputs(topic) {
+    outputs[topic] = [];
+    outputTokens[topic] = PubSub.subscribe(topic, (msg, data) => {
+        outputs[topic].push(data);
+    });
+}
+
+function getOutputs(topic) {
+    PubSub.unsubscribe(outputTokens[topic]);
+    return outputs[topic];
 }
 
 module.exports = {
-    runIntCodeProgram,
+    runIntcodeProgram,
+    sendInput,
+    startRecordingOutputs,
+    getOutputs,
+    getNewTopic,
 }
