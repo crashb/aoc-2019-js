@@ -1,0 +1,14 @@
+{
+  "name": "aoc-2019",
+  "version": "1.0.0",
+  "description": "crashb's solutions to AoC 2019 in Node.js",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "test": "mocha"
+  }
+}
