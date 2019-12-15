@@ -2,6 +2,7 @@ const PubSub = require('pubsub-js');
 
 const MODE_POSITION = 0;
 const MODE_IMMEDIATE = 1;
+const MODE_RELATIVE = 2;
 
 const OPCODE_SUM = 1;
 const OPCODE_MULT = 2;
@@ -11,6 +12,7 @@ const OPCODE_JIT = 5;
 const OPCODE_JIF = 6;
 const OPCODE_LT = 7;
 const OPCODE_EQ = 8;
+const OPCODE_INC_BASE = 9;
 const OPCODE_HALT = 99;
 
 const INSTRUCTION_LENGTHS = {
@@ -21,7 +23,8 @@ const INSTRUCTION_LENGTHS = {
     [OPCODE_JIT]: 3,
     [OPCODE_JIF]: 3,
     [OPCODE_LT]: 4,
-    [OPCODE_EQ]: 4
+    [OPCODE_EQ]: 4,
+    [OPCODE_INC_BASE]: 2,
 }
 
 function getParameterMode(parameterModes, position) {
@@ -29,8 +32,12 @@ function getParameterMode(parameterModes, position) {
 }
 
 async function runIntcodeProgram(program, inputTopic, outputTopic) {
-    let state = program.slice();
+    let state = {}
+    for (let i in program) {
+        state[i] = program[i];
+    }
     let programCounter = 0;
+    let relativeBase = 0;
     while (state[programCounter] % 100 != OPCODE_HALT) {
         let currentOpcode = state[programCounter] % 100;
         let currentModes = Math.floor(state[programCounter] / 100);
@@ -38,14 +45,21 @@ async function runIntcodeProgram(program, inputTopic, outputTopic) {
         let parameterIndices = [];
         for (let i = 1; i < instructionLength; i++) {
             let parameterMode = getParameterMode(currentModes, i);
-            if (parameterMode == MODE_POSITION) {
-                parameterIndices.push(state[programCounter + i]);
-            }
-            else if (parameterMode == MODE_IMMEDIATE) {
-                parameterIndices.push(programCounter + i);
+            switch (parameterMode) {
+                case MODE_POSITION:
+                    parameterIndices.push(state[programCounter + i]);
+                    break;
+                case MODE_IMMEDIATE:
+                    parameterIndices.push(programCounter + i);
+                    break;
+                case MODE_RELATIVE:
+                    parameterIndices.push(relativeBase + state[programCounter + i])
+                    break;
+                default:
+                    throw `Invalid mode encountered: ${parameterMode}`;
             }
         }
-        let parameters = parameterIndices.map(i => state[i]);
+        let parameters = parameterIndices.map(i => state[i]).map(p => p == undefined ? 0 : p);
         
         let jumped = false;
         switch(currentOpcode) {
@@ -86,13 +100,23 @@ async function runIntcodeProgram(program, inputTopic, outputTopic) {
             case OPCODE_EQ:
                 state[parameterIndices[2]] = (parameters[0] == parameters[1]) ? 1 : 0;
                 break;
+            case OPCODE_INC_BASE:
+                relativeBase += parameters[0];
+                break;
             default:
-                throw `Invalid opcode encountered: ${state[programCounter]}`;
+                throw `Invalid opcode encountered: ${state[programCounter]} (at position ${programCounter})`;
         }
 
         if (!jumped) {
             programCounter += instructionLength;
         }
+    }
+
+    let i = 0;
+    let stateArray = [];
+    while (i in state) {
+        stateArray.push(state[i]);
+        i++;
     }
 
     // block execution briefly to allow published output messages to settle
@@ -102,7 +126,7 @@ async function runIntcodeProgram(program, inputTopic, outputTopic) {
         }, 0);
     });
 
-    return state;
+    return stateArray;
 }
 
 var topicCounter = 0;

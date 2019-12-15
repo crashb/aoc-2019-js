@@ -6,6 +6,7 @@ const { solveDayFive } = require("./src/05");
 const { solveDaySix } = require("./src/06");
 const { solveDaySeven } = require("./src/07");
 const { solveDayEight } = require("./src/08");
+const { solveDayNine } = require("./src/09");
 
 async function solveAllDays() {
     await solveDayOne();
@@ -16,6 +17,7 @@ async function solveAllDays() {
     await solveDaySix();
     await solveDaySeven();
     await solveDayEight();
+    await solveDayNine();
 }
 
 solveAllDays();

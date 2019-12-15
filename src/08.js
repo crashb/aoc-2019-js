@@ -53,7 +53,7 @@ function solvePartTwo(layers, width, height) {
 }
 
 function prettifyImage(image) {
-    return image.split("").map(p => p == '0' ? ' ' : p).map(p => p == '1' ? '#' : p).join("");
+    return image.split("").map(p => p == '0' ? '.' : p).map(p => p == '1' ? '#' : p).join("");
 }
 
 function solveDayEight() {
