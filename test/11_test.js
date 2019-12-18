@@ -1,7 +1,7 @@
 const assert = require("assert");
 const { paintNextSquare, DIR_UP, DIR_LEFT, DIR_DOWN } = require("../src/11");
 
-describe("Day 11 #intcode", () => {
+describe("Day 11", () => {
     describe("Part 1 - paintNextSquare", () => {
         it("paints the given example", () => {
             let squares = {};
